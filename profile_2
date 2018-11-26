@@ -67,7 +67,13 @@ if [ -z "$TMUX" ]; then
     unset CONDA_HOME
     unset CONDA_BRANCH
   else
-    CONDA_HOME=""
+    CONDA_HOME="$(which conda)"
+    CONDA_HOME="$(dirname $CONDA_HOME)"
+    CONDA_HOME="$(dirname $CONDA_HOME)"
+    if [[ "$(conda --version | grep -Eo '[0-9.]*')" > "4.3.9999" ]]; then
+      source "$CONDA_HOME/etc/profile.d/conda.sh"
+    fi
+    unset CONDA_HOME
   fi
 
   # set PATH so it include brew
