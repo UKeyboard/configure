@@ -91,4 +91,15 @@ if [ -z "$TMUX" ]; then
   # set PATH so it includes local bin directories
   test -d "$HOME/.bin" && PATH="$HOME/.bin:$PATH"
   test -d "$HOME/.local/bin" && PATH="$HOME/.local/bin:$PATH"
+else
+  # source conda.sh to use "conda activate" in TMUX session
+  if [ -n "$(command -v conda 2>/dev/null)" ]; then
+    CONDA_HOME="$(which conda)"
+    CONDA_HOME="$(dirname $CONDA_HOME)"
+    CONDA_HOME="$(dirname $CONDA_HOME)"
+    if [[ "$(conda --version | grep -Eo '[0-9.]*')" > "4.3.9999" ]]; then                                                             
+      source "$CONDA_HOME/etc/profile.d/conda.sh"
+    fi
+    unset CONDA_HOME
+  fi
 fi
