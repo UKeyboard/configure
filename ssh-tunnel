@@ -1,0 +1,122 @@
+#!/bin/bash
+
+## The script is used for detecting the accessibility of tunnel from
+##     remote-server:remote-port --> localhost:local-port
+##     set USERNAME
+
+## Status information will be displayed if -q argument is not specified.
+## If -R is set, setup the tunnel automatically when it is shutdown.
+## Use -r to set the remote port and -l to set the local port.
+
+function howto {
+  echo "usage: ssh-tunnel [-R,--restart  setup the tunnel if it is not online]"
+  echo "                  [-q,--quiet  quiet mode]"
+  echo "                  [-h,--help  show this help message]"
+  echo "                  [-L,--local  local host address or ip, default 127.0.0.1]"
+  echo "                  -H,--remote  remote host address or ip"
+  echo "                  -r  remote port"
+  echo "                  -l  local port"
+}
+
+function check_tunnel {
+  ## localhost localport remotehost remoteport remoteuser
+  r=$(ps -ef | grep "ssh -qTfNn -R $4:$1:$2 $5@$3" | grep -v grep -c)
+  if [ "0" == "$r" ]; then
+    echo -e "[offline] `date '+%Y-%m-%d %H:%M:%S'`    $3:$4 --> $1:$2"
+  else
+    echo -e "[ online] `date '+%Y-%m-%d %H:%M:%S'`    $3:$4 --> $1:$2"
+  fi
+}
+
+
+local_host="127.0.0.1"
+remote_host=""
+quiet_mode=false
+auto_restart=false
+remote_port=-1
+local_port=-1
+
+while true; do
+  case "$1" in
+    -R | --restart ) auto_restart=true;;
+    -q | --quiet ) quiet_mode=true;;
+    -h | --help ) howto; exit -1;;
+    -l )
+       if [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
+           local_port="$2"
+       else
+           echo "invalid local port: $2"
+           howto;exit 1
+       fi
+       shift
+       ;;
+    -r )
+       if [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
+           remote_port="$2"
+       else
+           echo "invalid remote port: $2"
+           howto;exit 1
+       fi
+       shift
+       ;;
+    -H | --remote )
+       if [[ "$2" =~ ^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])|[a-z0-9]+([\-\.][a-z0-9]+)*\.[a-z]{2,6}$ ]]; then
+           remote_host="$2"
+       else
+           echo "invalid remote host address: $2"
+           howto;exit 1
+       fi
+       shift
+       ;;
+    -L | --local )
+       if [ "localhost" == "$2" -o "127.0.0.1" == "$2" ]; then
+           local_host="$2"
+       else
+           echo "local address must be one of [localhost, 127.0.0.1], but got: $2"
+           howto;exit 1
+       fi
+       shift
+       ;;
+    * )
+       if [ -z "$1" ]; then break; else echo "unknown argument: $1"; fi
+       howto; exit 1
+       ;;
+  esac
+  shift
+done
+
+if [ "-1" == "$remote_port" ]; then
+  echo "-r is missing, remote port is required"
+  howto;exit 1
+fi
+
+if [ "-1" == "$local_port" ]; then
+  echo "-l is missing, local port is required"
+  howto;exit 1
+fi
+
+if [ -z "$remote_host" ]; then
+  echo "-H,--remote is missing, remote host address is required"
+  howto;exit 1
+fi
+
+
+rcode=$(check_tunnel "$local_host" "$local_port" "$remote_host" "$remote_port" "hejun")
+if [ "0" != "$(echo $rcode | grep "offline" | grep -v grep -c)" ]; then
+  echo $rcode
+  if [ "true" == "$auto_restart" ]; then
+      OLD_LD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+      LD_LIBRARY_PATH=""
+      ssh -qTfNn -R $remote_port:$local_host:$local_port USERNAME@$remote_host
+      LD_LIBRARY_PATH="$OLD_LD_LIBRARY_PATH"
+      if [ "0" != "$(check_tunnel "$local_host" "$local_port" "$remote_host" "$remote_port" "hejun" | grep "offline" | grep -v grep -c)" ]; then
+          echo -e "[ failed] `date '+%Y-%m-%d %H:%M:%S'`    rebuild tunnel $remote_host:$remote_port --> $local_host:$local_port"
+      else
+          echo -e "[   OK  ] `date '+%Y-%m-%d %H:%M:%S'`    rebuild tunnel $remote_host:$remote_port --> $local_host:$local_port"
+      fi
+  fi
+else
+  if [ "true" != "$quiet_mode" ]; then
+    echo $rcode
+  fi
+fi
