@@ -1,0 +1,75 @@
+#!/bin/bash
+function howto {
+  echo "-----------------------------"
+  echo "+  USAGE: viewinfo [-i cpu|mem] [-n NUM]"
+  echo "+  INFOS: show top NUM processes with the most CPU or memory usage in descent order"
+  echo "+  PARAM:"
+  echo "    -i, cpu|mem, the item info to view, only support cpu or memory,default cpu"
+  echo "    -n, NUM, the number of processes to view, default 10"
+  echo "    -m, minimum,        the minimum user-id,default 1000"
+  echo "    -M, maximum,        the maximum user-id,default 60000"
+  echo "    -h, show this help information"
+  exit
+}
+
+m=1000
+M=60000
+I=4
+N=10
+
+
+while getopts "i:n:m:M:h" option
+do
+case "${option}" in
+i)
+  case "${OPTARG}" in
+  "cpu"|"CPU"|"Cpu")
+    I=4
+    ;;
+  "mem"|"MEM"|"memory")
+    I=5
+    ;;
+  *)
+    howto
+    ;;
+  esac
+  ;;
+n)
+  if [[ ${OPTARG} =~ ^[1-9][0-9]*$ ]]; then
+    N=${OPTARG}
+  else
+    howto
+  fi
+  ;;
+m)
+  if [[ ${OPTARG} =~ ^[1-9][0-9]*$ ]]; then
+    m=${OPTARG}
+  else
+    howto
+  fi
+  ;;
+M)
+  if [[ ${OPTARG} =~ ^[1-9][0-9]*$ ]]; then
+    M=${OPTARG}
+  else
+    howto
+  fi
+  ;;
+h)
+  howto
+  ;;
+*)
+  howto
+  ;;
+esac
+done
+
+usrs=$(getent passwd | awk -F':' -v "min=$m" -v "max=$M" '{ if ( ($3 >= min && $3 <= max  && $7 != "/sbin/nologin")) print $1 }' | sort -u | xargs | sed 's/ /,/g')
+
+# echo $usrs
+# echo $m
+# echo $M
+# echo $I
+# echo $N
+ps -U mail -u mail -o ni,user,pid,pcpu,pmem,cputime,etime,comm | grep PID
+ps -U $usrs -u $usrs -o ni,user,pid,pcpu,pmem,cputime,etime,comm | grep -v PID | sort -rn -k +${I} | head -${N}
