@@ -1,0 +1,75 @@
+```bash
+#!/bin/bash
+
+## This script is used to create user-folder under /mnt/hd/x/storage for all valid users.
+## It can also be used to update the /mnt/hd/x/storage structure to remove user-folder of
+## invalid or inexistent user.
+## Author: hyj.hfut.mail@gmail.com
+
+function help {
+  echo "USAGE: umkdir [-d DIRECTORY] user1 [user2 [user3 [...]]]"
+  echo " INFO: create/update user-folder which locates in directory DIRECTORY"
+  echo "       DIRECTORY is set to /mnt/hd/0/storage by default, you can chan-"
+  echo "       ge it to wherever you want to create/update user-folder by"
+  echo "       set -d parameter"
+}
+if [ $# -lt 1 ]; then help && exit 1; fi
+_s_pwd_old="$PWD"
+_s_target=""
+_s_users=""
+while true; do
+  case "$1" in
+    -d)
+      if [ -z "$2" ]; then
+        help && exit 1
+      else
+        _s_target="$2"
+      fi
+      shift
+      ;;
+    -h | --help | -help)
+      help && exit 0
+      ;;
+     *)
+      if [ -z "$1" ]; then
+        break
+      else
+        _s_users="$1:$_s_users"
+      fi
+      ;;
+  esac
+  shift
+done
+if [ -z "$_s_users" ]; then help && exit 1; fi
+if [ -z "$_s_target" ]; then _s_target="/mnt/hd/0/storage"; fi
+if [ -d "$_s_target" ]; then
+  cd "$_s_target"
+  for i in `echo $_s_users | tr ':' '\n'`; do
+    if ! id -u "$i" >/dev/null 2>&1; then
+      echo -n "user ${i} not exist, "
+      read -p "Continue to next user? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] && continue
+      exit 1
+    fi
+    if [ -d "$i" ]; then
+      if [ "${i}:${i}" != "$(stat -c "%U:%G" "$i")" ]; then
+        echo "user folder ${_s_target}/${i} exist, but ownership not ${i}:${i}"
+        read -p "Continue to fix ownership? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] && sudo chown $i: $i
+      fi
+      _s_umask="$(umask)"
+      _s_umask="${_s_umask:0:1}x${_s_umask:1:4}"
+      _s_tmask="$(printf "%X" $(($_s_umask ^ 0x757)))"
+      if [ "$(stat -c "%a" "$i")" != "$_s_tmask" ]; then
+        echo "user folder ${_s_target}/${i} exist, but permission not ${_s_tmask}"
+        read -p "Continue to fix permission? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] && sudo chmod $_s_tmask $i
+      fi
+    else
+      echo "create user folder ${_s_target}/${i}"
+      sudo mkdir $i 2>/dev/null && sudo chown $i: $i
+    fi
+  done
+  cd "$_s_pwd_old"
+else
+  echo "directory ${_s_target} not found"
+  exit 1
+fi
+```
