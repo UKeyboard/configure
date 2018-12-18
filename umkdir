@@ -1,4 +1,3 @@
-```bash
 #!/bin/bash
 
 ## This script is used to create user-folder under /mnt/hd/x/storage for all valid users.
@@ -72,4 +71,3 @@ else
   echo "directory ${_s_target} not found"
   exit 1
 fi
-```
