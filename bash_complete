@@ -1,0 +1,12 @@
+# auto-complete ssh with hosts defined in ~/.ssh/config
+_ssh_config_hosts () {
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts=$(grep "^Host" ~/.ssh/config ~/.ssh/config.d/*  2>/dev/null | grep -v "[?*]" | cut -f 2 -d ' ')
+
+    COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+    return 0
+}
+complete -F _ssh_config_hosts ssh
